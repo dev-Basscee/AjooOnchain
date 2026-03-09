@@ -1,202 +1,222 @@
 import { DashboardLayout } from "./DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
-
-const recentActivity = [
-  {
-    asset: "USDC",
-    name: "USD Coin",
-    chain: "AVAX",
-    chainColor: "#c92929",
-    chainBg: "rgba(110,23,23,0.3)",
-    type: "ROTATIONAL SAVINGS",
-    amount: "4,200",
-    currency: "USDC",
-    value: "$4,200.00",
-    duration: "12 Days",
-    change: "+2.5%",
-    changePositive: true,
-  },
-  {
-    asset: "AVAX",
-    name: "Avalanche",
-    chain: "AVAX",
-    chainColor: "#c92929",
-    chainBg: "rgba(110,23,23,0.3)",
-    type: "YIELD GENERATION",
-    amount: "10.5",
-    currency: "AVAX",
-    value: "$420.00",
-    duration: "30 Days",
-    change: "+9.47%",
-    changePositive: true,
-  },
-  {
-    asset: "USDT",
-    name: "Tether",
-    chain: "AVAX",
-    chainColor: "#c92929",
-    chainBg: "rgba(110,23,23,0.3)",
-    type: "ROTATIONAL SAVINGS",
-    amount: "1,000",
-    currency: "USDT",
-    value: "$1,000.00",
-    duration: "7 Days",
-    change: "+1.2%",
-    changePositive: true,
-  },
-];
-
-const assetCards = [
-  {
-    label: "YIELD GENERATION",
-    value: "$8,500.24",
-    gain: "+$450.24",
-    pct: "+5.3%",
-  },
-  {
-    label: "ROTATIONAL SAVINGS",
-    value: "$3,500.00",
-    gain: "+$150.24",
-    pct: "+4.3%",
-  },
-  {
-    label: "NET WORTH",
-    value: "$24,120.24",
-    gain: "+$2,000.35",
-    pct: "+9.0%",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useWeb3 } from "@/lib/Web3Context";
+import { Loader2, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 
 export const DashboardAssets = (): JSX.Element => {
+  const { account, connectWallet, isConnecting } = useWeb3();
+
+  const { data: groups, isLoading } = useQuery({
+    queryKey: ["groups", "assets"],
+    enabled: !!account,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("groups")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  if (!account) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[75vh] gap-8 px-6">
+          <div className="relative">
+            <div className="absolute -inset-4 bg-primary-500/20 blur-xl rounded-full" />
+            <div className="relative p-8 bg-[#1a1a1a] rounded-3xl border border-white/10 shadow-2xl">
+              <Wallet className="w-16 h-12 text-primary-300" />
+            </div>
+          </div>
+          
+          <div className="max-w-md text-center space-y-4">
+            <h2 className="text-3xl lg:text-4xl font-bold text-white font-title-xl tracking-tight">
+              Connect to View Assets
+            </h2>
+            <p className="text-surface-500 font-body-md text-lg leading-relaxed">
+              Connect your wallet to track your portfolio balance, active savings, and yield across all circles.
+            </p>
+          </div>
+
+          <Button 
+            onClick={() => connectWallet()}
+            disabled={isConnecting}
+            className="group relative bg-primary-300 hover:bg-primary-400 text-primary-950 font-bold px-10 py-8 rounded-2xl text-xl transition-all hover:scale-105 active:scale-95 shadow-xl shadow-primary-900/20"
+          >
+            {isConnecting ? (
+              <>
+                <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                CONNECTING...
+              </>
+            ) : (
+              <>
+                <Wallet className="mr-3 h-6 w-6 transition-transform group-hover:rotate-12" />
+                CONNECT WALLET
+              </>
+            )}
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Calculate total balance from all active contributions
+  const totalRotationalSavings = groups?.reduce((sum, group) => {
+    return sum + Number(group.contribution_amount || 0);
+  }, 0) || 0;
+
+  const totalYield = 0; // Coming soon
+  const netWorth = totalRotationalSavings + totalYield;
+
+  const assetCards = [
+    {
+      label: "YIELD GENERATION",
+      value: `$${totalYield.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      gain: "+$0.00",
+      pct: "+0.0%",
+    },
+    {
+      label: "ROTATIONAL SAVINGS",
+      value: `$${totalRotationalSavings.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      gain: "Active",
+      pct: "",
+    },
+    {
+      label: "NET WORTH",
+      value: `$${netWorth.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      gain: "Total Value",
+      pct: "",
+    },
+  ];
+
   return (
     <DashboardLayout>
-      <header className="pt-8 lg:pt-[100px] pb-8 lg:pb-12">
-        <h1 className="[font-family:'Syne',Helvetica] font-semibold text-[#f7f9fd] text-2xl lg:text-[34px] tracking-[0] leading-[48px]">
-          YOUR ASSETS
-        </h1>
-      </header>
+      <div className="container mx-auto px-4 max-w-[1200px] flex flex-col gap-12 lg:gap-16 py-8 lg:py-12">
+        <header className="flex items-center justify-between">
+          <h1 className="[font-family:'Syne',Helvetica] font-semibold text-surface-100 text-2xl lg:text-[34px] tracking-[0] leading-[48px]">
+            YOUR ASSETS
+          </h1>
+        </header>
 
-      <Card className="bg-[rgba(18,18,18,0.3)] rounded-3xl border-[0.2px] border-[rgba(203,207,210,0.6)] overflow-hidden">
-        <CardContent className="p-6 lg:p-8">
-          <p className="font-['Inter',sans-serif] font-normal text-[#8e979f] text-sm leading-[20px]">
-            TOTAL PORTFOLIO BALANCE
-          </p>
-          <p className="font-['Syne',sans-serif] text-[#f7f9fd] text-4xl lg:text-[48px] leading-[64px] mt-2">
-            $20,000.24
-          </p>
-          <p className="font-['Inter',sans-serif] font-normal text-[#1bc590] text-xs leading-[18px] mt-1">
-            +15% this week
-          </p>
-        </CardContent>
-      </Card>
+        <Card className="bg-[#1212124c] rounded-3xl border-[0.2px] border-solid border-[#cbcfd299] overflow-hidden">
+          <CardContent className="p-6 lg:p-8">
+            <p className="font-['Inter',sans-serif] font-normal text-[#8e979f] text-sm leading-[20px] uppercase tracking-wider">
+              Total Portfolio Balance
+            </p>
+            <p className="font-['Syne',sans-serif] text-[#f7f9fd] text-4xl lg:text-[48px] leading-[64px] mt-2 font-bold tracking-tight">
+              ${netWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="font-['Inter',sans-serif] font-normal text-success-100 text-sm leading-[18px] mt-2">
+              Tracking live assets
+            </p>
+          </CardContent>
+        </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 lg:mt-8">
-        {assetCards.map((card, i) => (
-          <Card
-            key={i}
-            className="bg-[rgba(18,18,18,0.3)] rounded-3xl border-[0.2px] border-[rgba(203,207,210,0.6)] overflow-hidden"
-          >
-            <CardContent className="p-6 lg:p-8 flex flex-col gap-1">
-              <p className="font-['Inter',sans-serif] font-normal text-[#8e979f] text-sm leading-[24px]">
-                {card.label}
-              </p>
-              <p className="font-['Syne',sans-serif] font-normal text-[#87bbb7] text-2xl lg:text-[34px] leading-[48px]">
-                {card.value}
-              </p>
-              <p className="font-['Inter',sans-serif] font-semibold text-[#0f766e] text-sm leading-[20px]">
-                {card.gain} &nbsp;
-                <span className="text-[#1bc590]">{card.pct}</span>
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <section className="mt-8 lg:mt-12">
-        <div className="flex items-center gap-4 mb-6">
-          <p className="font-['Inter',sans-serif] font-normal text-[#8e979f] text-xs tracking-[1.2px] leading-[18px] whitespace-nowrap">
-            RECENT ACTIVITY
-          </p>
-          <div className="flex-1 h-[0.2px] bg-[#8e979f]" />
-          <button className="font-['Inter',sans-serif] font-normal text-[#0f766e] text-sm leading-[14px]">
-            View all
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          {recentActivity.map((item, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
+          {assetCards.map((card, i) => (
             <Card
               key={i}
-              className="bg-[rgba(18,18,18,0.3)] rounded-3xl border-[0.2px] border-[rgba(203,207,210,0.6)] overflow-hidden"
+              className="bg-[#1212124c] rounded-3xl border-[0.2px] border-solid border-[#cbcfd299] overflow-hidden hover:border-primary-300/50 transition-colors"
             >
-              <CardContent className="p-5 lg:p-8">
-                <div className="flex flex-wrap items-center gap-4 lg:gap-[52px]">
-                  <div className="flex flex-col gap-1 min-w-[100px]">
-                    <p className="font-['Syne',sans-serif] font-medium text-white text-xl lg:text-[34px] leading-[48px]">
-                      {item.asset}
-                    </p>
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-['Inter',sans-serif] font-normal text-[#8e979f] text-sm leading-[20px]">
-                        {item.name}
-                      </p>
-                      <div
-                        className="border-[0.5px] border-solid flex items-center justify-center overflow-hidden px-2 py-0.5 rounded"
-                        style={{
-                          backgroundColor: item.chainBg,
-                          borderColor: item.chainColor,
-                        }}
-                      >
-                        <p
-                          className="font-['Inter',sans-serif] font-normal text-xs leading-[18px]"
-                          style={{ color: item.chainColor }}
-                        >
-                          {item.chain}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="font-['Inter',sans-serif] font-normal text-white text-sm lg:text-base leading-[24px] hidden sm:block">
-                    {item.type}
-                  </p>
-
-                  <div className="flex flex-col gap-px">
-                    <p className="font-['Syne',sans-serif] font-normal text-white text-xl lg:text-[24px] leading-[34px]">
-                      {item.amount}
-                    </p>
-                    <p className="font-['Inter',sans-serif] font-normal text-[#8e979f] text-sm leading-[20px]">
-                      {item.currency}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-px">
-                    <p className="font-['Syne',sans-serif] font-normal text-white text-xl lg:text-[24px] leading-[34px]">
-                      {item.value}
-                    </p>
-                    <p className="font-['Inter',sans-serif] font-semibold text-[#0f766e] text-sm leading-[20px]">
-                      {item.duration}
-                    </p>
-                  </div>
-
-                  <p className="font-['Inter',sans-serif] font-normal text-[#0f766e] text-sm lg:text-base leading-[24px]">
-                    {item.change}
-                  </p>
-
-                  <div className="ml-auto">
-                    <button className="bg-[rgba(15,118,110,0.15)] border-[0.5px] border-[#87bbb7] border-solid flex items-center justify-center px-6 py-3 rounded-xl">
-                      <p className="font-['Inter',sans-serif] font-normal text-[#87bbb7] text-sm leading-[20px] whitespace-nowrap">
-                        Manage
-                      </p>
-                    </button>
-                  </div>
-                </div>
+              <CardContent className="p-6 lg:p-8 flex flex-col gap-1 h-[160px] justify-center">
+                <p className="font-['Inter',sans-serif] font-semibold text-[#8e979f] text-xs leading-[24px] uppercase tracking-wider">
+                  {card.label}
+                </p>
+                <p className="font-['Syne',sans-serif] font-bold text-primary-100 text-2xl lg:text-[34px] leading-[48px] tracking-tight">
+                  {card.value}
+                </p>
+                <p className="font-['Inter',sans-serif] font-medium text-surface-500 text-sm leading-[20px]">
+                  {card.gain} &nbsp;
+                  <span className="text-success-100">{card.pct}</span>
+                </p>
               </CardContent>
             </Card>
           ))}
         </div>
-      </section>
 
-      <div className="pb-16 lg:pb-24" />
+        <section className="mt-4">
+          <div className="flex items-center gap-4 mb-8">
+            <p className="font-['Inter',sans-serif] font-semibold text-[#8e979f] text-xs tracking-[1.2px] leading-[18px] whitespace-nowrap uppercase">
+              Active Circles
+            </p>
+            <div className="flex-1 h-[0.2px] bg-[#8e979f]/30" />
+          </div>
+
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary-300" />
+            </div>
+          ) : !groups || groups.length === 0 ? (
+            <div className="text-center py-12 text-surface-500 bg-[#1212124c] rounded-3xl border-[0.2px] border-[#cbcfd299]">
+              No active circles found. Join or create one to start growing your assets!
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {groups.map((group) => {
+                const cycleDays = group.cycle_duration ? Math.floor(group.cycle_duration / (24 * 60 * 60)) : 0;
+                
+                return (
+                  <Card
+                    key={group.id}
+                    className="bg-[#1212124c] rounded-3xl border-[0.2px] border-solid border-[#cbcfd299] overflow-hidden hover:bg-[#1a1a1a] transition-colors"
+                  >
+                    <CardContent className="p-5 lg:p-8">
+                      <div className="flex flex-wrap items-center justify-between gap-6">
+                        
+                        <div className="flex items-center gap-4 min-w-[200px]">
+                          <div className="w-12 h-12 rounded-full bg-primary-400 flex items-center justify-center font-bold text-primary-200 text-xl font-heading-md">
+                            {group.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <p className="font-['Syne',sans-serif] font-bold text-white text-xl lg:text-2xl leading-tight">
+                              {group.name}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="font-['Inter',sans-serif] text-surface-500 text-sm">Rotational Savings</span>
+                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-[#6e17174c] text-danger-200 border border-[#c92929]/50">
+                                AVAX Fuji
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <p className="font-['Inter',sans-serif] text-surface-500 text-xs uppercase tracking-wider">Contribution</p>
+                          <p className="font-['Syne',sans-serif] font-bold text-white text-xl">
+                            {group.contribution_amount} USDC
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col gap-1 hidden sm:flex">
+                          <p className="font-['Inter',sans-serif] text-surface-500 text-xs uppercase tracking-wider">Cycle</p>
+                          <p className="font-['Inter',sans-serif] font-medium text-white text-base">
+                            {cycleDays} Days
+                          </p>
+                        </div>
+
+                        <div className="ml-auto flex shrink-0">
+                          <Link href={`/dashboard/circle/${group.id}`}>
+                            <Button className="bg-primary-300/20 hover:bg-primary-300 text-primary-100 hover:text-primary-950 border border-primary-300/50 rounded-xl px-8 py-6 h-auto font-bold transition-all">
+                              Manage
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <div className="pb-16 lg:pb-24" />
+      </div>
     </DashboardLayout>
   );
 };
