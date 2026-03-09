@@ -132,15 +132,13 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
         setProvider(null);
         setSigner(null);
         setContract(null);
-        // If they manually disconnect, send them home
-        if (window.location.pathname !== "/") {
-          setLocation("/");
-        }
+        // We let the components handle the disconnected state gracefully
+        // rather than forcing a hard redirect which can interrupt transactions.
       }
     };
 
     syncState();
-  }, [isConnected, address, walletProvider, setLocation]);
+  }, [isConnected, address, walletProvider]); // removed setLocation from deps
 
   const connectWallet = async () => {
     try {
