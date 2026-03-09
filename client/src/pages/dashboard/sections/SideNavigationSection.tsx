@@ -1,8 +1,9 @@
-import { ChevronLeftIcon, MenuIcon, XIcon } from "lucide-react";
+import { ChevronLeftIcon, MenuIcon, XIcon, Wallet } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useState } from "react";
+import { useWeb3 } from "@/lib/Web3Context";
 
 const navigationItems = [
   {
@@ -42,6 +43,7 @@ export const SideNavigationSection = ({
   onClose,
 }: SideNavigationSectionProps): JSX.Element => {
   const [location, setLocation] = useLocation();
+  const { account, connectWallet, isConnecting } = useWeb3();
 
   const handleNavigate = (path: string) => {
     setLocation(path);
@@ -122,24 +124,40 @@ export const SideNavigationSection = ({
           </nav>
 
           <footer className="mt-auto px-[18px] pb-12 lg:pb-[86px]">
-            <div className="flex items-center gap-2.5 px-6 lg:px-10 py-2.5">
-              <Avatar className="w-10 h-10 bg-[#052725]">
-                <AvatarFallback className="bg-[#052725] font-title-xl font-[number:var(--title-xl-font-weight)] text-[#0f766e] text-[length:var(--title-xl-font-size)] tracking-[var(--title-xl-letter-spacing)] leading-[var(--title-xl-line-height)] [font-style:var(--title-xl-font-style)]">
-                  A
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col gap-0">
-                <p className="[font-family:'Poppins',Helvetica] font-medium text-white text-xl leading-7 whitespace-nowrap">
-                  0x2f3a...d76c
-                </p>
-                <p className="font-body-sm font-[number:var(--body-sm-font-weight)] text-surface-500 text-[length:var(--body-sm-font-size)] tracking-[var(--body-sm-letter-spacing)] leading-[var(--body-sm-line-height)] [font-style:var(--body-sm-font-style)]">
-                  Avalanche
-                </p>
-                <p className="font-body-sm font-[number:var(--body-sm-font-weight)] text-surface-500 text-[length:var(--body-sm-font-size)] tracking-[var(--body-sm-letter-spacing)] leading-[var(--body-sm-line-height)] [font-style:var(--body-sm-font-style)]">
-                  ~ Connected
-                </p>
+            {account ? (
+              <div className="flex items-center gap-2.5 px-6 lg:px-10 py-2.5">
+                <Avatar className="w-10 h-10 bg-[#052725]">
+                  <AvatarFallback className="bg-[#052725] font-title-xl font-[number:var(--title-xl-font-weight)] text-[#0f766e] text-[length:var(--title-xl-font-size)] tracking-[var(--title-xl-letter-spacing)] leading-[var(--title-xl-line-height)] [font-style:var(--title-xl-font-style)]">
+                    {account.slice(2, 3).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col gap-0">
+                  <p className="[font-family:'Poppins',Helvetica] font-medium text-white text-sm leading-7 whitespace-nowrap">
+                    {`${account.slice(0, 6)}...${account.slice(-4)}`}
+                  </p>
+                  <p className="font-body-sm font-[number:var(--body-sm-font-weight)] text-surface-500 text-[length:var(--body-sm-font-size)] tracking-[var(--body-sm-letter-spacing)] leading-[var(--body-sm-line-height)] [font-style:var(--body-sm-font-style)]">
+                    Avalanche Fuji
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <p className="font-body-sm font-[number:var(--body-sm-font-weight)] text-surface-500 text-[length:var(--body-sm-font-size)] tracking-[var(--body-sm-letter-spacing)] leading-[var(--body-sm-line-height)] [font-style:var(--body-sm-font-style)]">
+                      Connected
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="px-4">
+                <Button 
+                  onClick={connectWallet}
+                  disabled={isConnecting}
+                  className="w-full bg-[#0f766e] hover:bg-[#0f766e]/90 text-white rounded-xl py-6 flex items-center justify-center gap-2"
+                >
+                  <Wallet className="w-5 h-5" />
+                  {isConnecting ? "Connecting..." : "Connect Wallet"}
+                </Button>
+              </div>
+            )}
           </footer>
         </div>
       </aside>

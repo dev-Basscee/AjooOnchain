@@ -13,10 +13,15 @@ import { DashboardLayout } from "./DashboardLayout";
 import { CreateCircleModal } from "./components/CreateCircleModal";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useWeb3 } from "@/lib/Web3Context";
+import { Button } from "@/components/ui/button";
+import { Wallet } from "lucide-react";
 
 export const DashboardOverview = (): JSX.Element => {
+  const { account, connectWallet, isConnecting } = useWeb3();
   const { data: groups } = useQuery({
     queryKey: ["groups", "overview"],
+    enabled: !!account,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("groups")
@@ -25,6 +30,31 @@ export const DashboardOverview = (): JSX.Element => {
       return data;
     },
   });
+
+  if (!account) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
+          <div className="p-6 bg-[#1a1a1a] rounded-full border border-white/10">
+            <Wallet className="w-12 h-12 text-primary-300" />
+          </div>
+          <div className="max-w-md space-y-2">
+            <h2 className="text-2xl font-bold text-white font-title-xl">Connect Your Wallet</h2>
+            <p className="text-surface-500 font-body-md">
+              Please connect your Avalanche wallet to access your rotational savings, view your yield, and manage your circles.
+            </p>
+          </div>
+          <Button 
+            onClick={connectWallet}
+            disabled={isConnecting}
+            className="bg-primary-300 hover:bg-primary-400 text-primary-950 font-bold px-8 py-6 rounded-xl text-lg"
+          >
+            {isConnecting ? "Connecting..." : "Connect Wallet"}
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const activeCirclesCount = groups?.length || 0;
   
