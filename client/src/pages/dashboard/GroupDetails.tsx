@@ -3,7 +3,7 @@ import { DashboardLayout } from "./DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
@@ -25,6 +25,7 @@ export const GroupDetails = (): JSX.Element => {
   const { id } = useParams<{ id: string }>();
   const { account, signer, provider } = useWeb3();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isJoining, setIsJoining] = useState(false);
 
   const { data: group, isLoading } = useQuery({
@@ -46,16 +47,23 @@ export const GroupDetails = (): JSX.Element => {
     queryFn: async () => {
       const groupContract = new ethers.Contract(group.contract_address, AjooGroupABI.abi, provider);
       const members = [];
-      let i = 0;
-      while (true) {
+      
+      // Optimization: Try to get maxMembers first to bound the loop
+      let max = 4;
+      try {
+        const m = await groupContract.maxMembers();
+        max = Number(m);
+      } catch (e) {}
+
+      for (let i = 0; i < max; i++) {
         try {
           const memberData = await groupContract.members(i);
+          if (memberData[0] === ethers.ZeroAddress) break;
           members.push({
             account: memberData[0],
             hasContributedThisCycle: memberData[1],
-            totalContributed: ethers.formatUnits(memberData[2], 6), // assuming 6 decimals
+            totalContributed: ethers.formatUnits(memberData[2], 6), 
           });
-          i++;
         } catch (err) {
           // Reverts when index is out of bounds
           break;
@@ -93,11 +101,6 @@ export const GroupDetails = (): JSX.Element => {
         throw new Error("Please switch your wallet to Avalanche Fuji Testnet.");
       }
 
-      const avaxBalance = await provider.getBalance(account);
-      if (avaxBalance === BigInt(0)) {
-        throw new Error("You need some AVAX for gas fees. Use the Avalanche Faucet to get some.");
-      }
-
       const usdcContract = new ethers.Contract(USDC_ADDRESS, [
         ...ERC20_ABI,
         "function balanceOf(address account) external view returns (uint256)"
@@ -107,7 +110,7 @@ export const GroupDetails = (): JSX.Element => {
       const amountInWei = ethers.parseUnits(group.contribution_amount.toString(), 6);
       
       if (usdcBalance < amountInWei) {
-        throw new Error(`Insufficient USDC. You need ${group.contribution_amount} USDC but only have ${ethers.formatUnits(usdcBalance, 6)}.`);
+        throw new Error(`Insufficient USDC. You need ${group.contribution_amount} USDC.`);
       }
 
       console.log("Instantiating contract at:", group.contract_address);
@@ -118,55 +121,36 @@ export const GroupDetails = (): JSX.Element => {
       try {
         memberIndex = await groupContract.memberIndices(account);
       } catch (err) {
-        console.error("Contract call failed:", err);
-        throw new Error("This circle is using an older, incompatible contract version. Please join a newer circle.");
+        throw new Error("This circle uses an older contract version.");
       }
-      
-      console.log("Member index:", memberIndex);
       
       if (Number(memberIndex) === 0) {
         console.log("User is not a member. Sending joinGroup transaction...");
         toast({ title: "Joining Circle...", description: "Adding your wallet to the group members." });
-        
-        try {
-          const joinTx = await groupContract.joinGroup();
-          console.log("Join TX hash:", joinTx.hash);
-          await joinTx.wait();
-          toast({ title: "Joined!", description: "You are now a member. You can now deposit." });
-          setIsJoining(false);
-          return;
-        } catch (err: any) {
-          if (err.message.includes("missing revert data")) {
-            throw new Error("This circle contract does not support joining. It may be an older version.");
-          }
-          throw err;
-        }
+        const joinTx = await groupContract.joinGroup();
+        await joinTx.wait();
+        toast({ title: "Joined!", description: "You are now a member. Now sending deposit..." });
+        queryClient.invalidateQueries({ queryKey: ["groupMembers", group.contract_address] });
       }
 
-      console.log("Formatting contribution amount:", group.contribution_amount);
-      console.log("Checking USDC allowance...");
       const currentAllowance = await usdcContract.allowance(account, group.contract_address);
-      console.log("Current allowance:", currentAllowance.toString());
       
       if (currentAllowance < amountInWei) {
-        console.log("Insufficient allowance. Sending approve transaction...");
-        toast({ title: "Approving USDC...", description: "Please confirm the approval transaction." });
+        toast({ title: "Approving USDC...", description: "Please confirm approval." });
         const approveTx = await usdcContract.approve(group.contract_address, amountInWei);
-        console.log("Approve TX hash:", approveTx.hash);
         await approveTx.wait();
       }
 
-      console.log("Sending deposit transaction...");
-      toast({ title: "Depositing...", description: "Please confirm the deposit transaction." });
+      toast({ title: "Depositing...", description: "Please confirm deposit." });
       const depositTx = await groupContract.deposit();
-      console.log("Deposit TX hash:", depositTx.hash);
       await depositTx.wait();
 
-      console.log("Successfully joined and deposited!");
       toast({
         title: "Successfully Joined!",
-        description: `You have joined ${group.name}.`,
+        description: `You have joined and contributed to ${group.name}.`,
       });
+      
+      queryClient.invalidateQueries({ queryKey: ["groupMembers", group.contract_address] });
       
     } catch (error: any) {
       console.error("Error joining circle:", error);
