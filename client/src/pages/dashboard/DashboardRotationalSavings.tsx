@@ -3,14 +3,101 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useWeb3 } from "@/lib/Web3Context";
-import { Loader2, Wallet, PlusCircle } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { CreateCircleModal } from "./components/CreateCircleModal";
+import { useState, useEffect } from "react";
+import { ethers } from "ethers";
+import AjooGroupABI from "@/lib/AjooGroupABI.json";
+
+const CircleCard = ({ group, provider }: { group: any, provider: any }) => {
+  const [count, setCount] = useState<number | null>(null);
+  const [max, setMax] = useState<number>(4);
+
+  useEffect(() => {
+    if (!group.contract_address || !provider) return;
+    
+    const fetchCount = async () => {
+      try {
+        const contract = new ethers.Contract(group.contract_address, AjooGroupABI.abi, provider);
+        let i = 0;
+        while (i < 10) { 
+          try {
+            await contract.members(i);
+            i++;
+          } catch (err) {
+            break;
+          }
+        }
+        setCount(i);
+        
+        try {
+          const maxMembers = await contract.maxMembers();
+          setMax(Number(maxMembers));
+        } catch (e) {}
+      } catch (err) {
+        console.error("Failed to fetch dashboard circle participant count:", err);
+      }
+    };
+    
+    fetchCount();
+  }, [group.contract_address, provider]);
+
+  const cycleDays = group.cycle_duration ? Math.floor(group.cycle_duration / (24 * 60 * 60)) : 0;
+  const participantsTotal = max;
+
+  return (
+    <Card className="w-full bg-[#1212124c] rounded-3xl overflow-hidden border-[0.2px] border-[#cbcfd299] hover:border-primary-300/50 transition-all">
+      <CardContent className="p-8 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-primary-400 flex items-center justify-center font-bold text-primary-200 text-xl">
+            {group.name.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex flex-col">
+            <h3 className="font-['Syne',sans-serif] font-bold text-white text-xl leading-tight">
+              {group.name}
+            </h3>
+            <p className="text-surface-500 text-sm">
+              Hosted by {group.creator_address.slice(0, 6)}...{group.creator_address.slice(-4)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Badge className="bg-[#6e17174c] text-danger-200 border-[#c92929]/50">AVALANCHE</Badge>
+          <Badge className="bg-[#33383d4c] text-surface-500 border-[#8e979f]/50">{cycleDays} Day Cycle</Badge>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-4 bg-black/20 rounded-2xl border border-white/5">
+            <p className="text-[#8e979f] text-[10px] uppercase tracking-wider mb-1 font-semibold">Contribution</p>
+            <p className="text-white font-bold text-lg">{group.contribution_amount} USDC</p>
+          </div>
+          <div className="p-4 bg-black/20 rounded-2xl border border-white/5">
+            <p className="text-[#8e979f] text-[10px] uppercase tracking-wider mb-1 font-semibold">Pool Total</p>
+            <p className="text-white font-bold text-lg">{(group.contribution_amount || 0) * participantsTotal} USDC</p>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center text-xs text-surface-500 uppercase font-semibold">
+          <span>Participants</span>
+          <span>{count === null ? "..." : count}/{participantsTotal}</span>
+        </div>
+
+        <Link href={`/dashboard/circle/${group.id}`}>
+          <Button className="w-full bg-primary-300 hover:bg-primary-400 text-primary-950 font-bold py-6 rounded-xl">
+            MANAGE CIRCLE
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+  );
+};
 
 export const DashboardRotationalSavings = (): JSX.Element => {
-  const { account, connectWallet, isConnecting } = useWeb3();
+  const { account, connectWallet, isConnecting, provider } = useWeb3();
 
   const { data: groups, isLoading } = useQuery({
     queryKey: ["groups", "rotational"],
@@ -78,7 +165,6 @@ export const DashboardRotationalSavings = (): JSX.Element => {
               </p>
             </CardContent>
           </Card>
-          {/* Other stat cards could go here */}
         </div>
 
         <section>
@@ -100,53 +186,9 @@ export const DashboardRotationalSavings = (): JSX.Element => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {groups.map((group) => {
-                const cycleDays = group.cycle_duration ? Math.floor(group.cycle_duration / (24 * 60 * 60)) : 0;
-                const participantsTotal = 4;
-                const participantsCurrent = 1;
-
-                return (
-                  <Card key={group.id} className="w-full bg-[#1212124c] rounded-3xl overflow-hidden border-[0.2px] border-[#cbcfd299] hover:border-primary-300/50 transition-all">
-                    <CardContent className="p-8 space-y-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-primary-400 flex items-center justify-center font-bold text-primary-200 text-xl">
-                          {group.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex flex-col">
-                          <h3 className="font-['Syne',sans-serif] font-bold text-white text-xl leading-tight">
-                            {group.name}
-                          </h3>
-                          <p className="text-surface-500 text-sm">
-                            Hosted by {group.creator_address.slice(0, 6)}...{group.creator_address.slice(-4)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-[#6e17174c] text-danger-200 border-[#c92929]/50">AVALANCHE</Badge>
-                        <Badge className="bg-[#33383d4c] text-surface-500 border-[#8e979f]/50">{cycleDays} Day Cycle</Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-black/20 rounded-2xl border border-white/5">
-                          <p className="text-[#8e979f] text-[10px] uppercase tracking-wider mb-1">Contribution</p>
-                          <p className="text-white font-bold text-lg">{group.contribution_amount} USDC</p>
-                        </div>
-                        <div className="p-4 bg-black/20 rounded-2xl border border-white/5">
-                          <p className="text-[#8e979f] text-[10px] uppercase tracking-wider mb-1">Pool Total</p>
-                          <p className="text-white font-bold text-lg">{group.contribution_amount * participantsTotal} USDC</p>
-                        </div>
-                      </div>
-
-                      <Link href={`/dashboard/circle/${group.id}`}>
-                        <Button className="w-full bg-primary-300 hover:bg-primary-400 text-primary-950 font-bold py-6 rounded-xl">
-                          MANAGE CIRCLE
-                        </Button>
-                      </Link>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              {groups.map((group) => (
+                <CircleCard key={group.id} group={group} provider={provider} />
+              ))}
             </div>
           )}
         </section>
