@@ -57,9 +57,10 @@ AJOO leverages the high-performance Avalanche ecosystem to provide a seamless an
 
 The core Factory contract is deployed and verified on the **Avalanche Fuji Testnet**:
 
-- **Factory Address:** `0xE9412467A7cB0DeABD24C2044758Ffa945f87bd3`
-- **Snowtrace Explorer:** [https://testnet.snowtrace.io/address/0xE9412467A7cB0DeABD24C2044758Ffa945f87bd3](https://testnet.snowtrace.io/address/0xE9412467A7cB0DeABD24C2044758Ffa945f87bd3)
-- **Avalanche Explorer:** [https://subnets-test.avax.network/c-chain/address/0xE9412467A7cB0DeABD24C2044758Ffa945f87bd3](https://subnets-test.avax.network/c-chain/address/0xE9412467A7cB0DeABD24C2044758Ffa945f87bd3)
+- **Factory Address:** `0x940fCaE3bAaBC3782F3309211e357481cEe73C36`
+- **Transaction Hash:** `0xad8404bb9be392ce28d3483a6a4ba37badd63daf636f1c3e9f7037d66925663e`
+- **Snowtrace Explorer:** [https://testnet.snowtrace.io/address/0x940fCaE3bAaBC3782F3309211e357481cEe73C36](https://testnet.snowtrace.io/address/0x940fCaE3bAaBC3782F3309211e357481cEe73C36)
+- **Avalanche Explorer:** [https://subnets-test.avax.network/c-chain/address/0x940fCaE3bAaBC3782F3309211e357481cEe73C36](https://subnets-test.avax.network/c-chain/address/0x940fCaE3bAaBC3782F3309211e357481cEe73C36)
 
 ---
 

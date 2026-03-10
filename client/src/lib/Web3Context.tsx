@@ -12,7 +12,7 @@ import {
 } from "@web3modal/ethers/react";
 
 // The AjooFactory contract address from the deployment on Avalanche Fuji
-export const FACTORY_ADDRESS = "0xE9412467A7cB0DeABD24C2044758Ffa945f87bd3";
+export const FACTORY_ADDRESS = "0x940fCaE3bAaBC3782F3309211e357481cEe73C36";
 
 // 1. Get projectId from https://cloud.walletconnect.com
 // This is a public testing project ID. For production, replace with your own.

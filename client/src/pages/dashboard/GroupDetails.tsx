@@ -67,7 +67,7 @@ export const GroupDetails = (): JSX.Element => {
 
   const handleJoin = async () => {
     console.log("Initiating join for group in details:", group?.name, group?.contract_address);
-    if (!account || !signer) {
+    if (!account || !signer || !provider) {
       toast({
         title: "Wallet not connected",
         description: "Please connect your wallet to join.",
@@ -87,26 +87,63 @@ export const GroupDetails = (): JSX.Element => {
 
     setIsJoining(true);
     try {
+      // 0. Pre-checks: Network and Balances
+      const network = await provider.getNetwork();
+      if (Number(network.chainId) !== 43113) {
+        throw new Error("Please switch your wallet to Avalanche Fuji Testnet.");
+      }
+
+      const avaxBalance = await provider.getBalance(account);
+      if (avaxBalance === BigInt(0)) {
+        throw new Error("You need some AVAX for gas fees. Use the Avalanche Faucet to get some.");
+      }
+
+      const usdcContract = new ethers.Contract(USDC_ADDRESS, [
+        ...ERC20_ABI,
+        "function balanceOf(address account) external view returns (uint256)"
+      ], signer);
+      
+      const usdcBalance = await usdcContract.balanceOf(account);
+      const amountInWei = ethers.parseUnits(group.contribution_amount.toString(), 6);
+      
+      if (usdcBalance < amountInWei) {
+        throw new Error(`Insufficient USDC. You need ${group.contribution_amount} USDC but only have ${ethers.formatUnits(usdcBalance, 6)}.`);
+      }
+
       console.log("Instantiating contract at:", group.contract_address);
       const groupContract = new ethers.Contract(group.contract_address, AjooGroupABI.abi, signer);
       
       console.log("Checking if user is already a member...");
-      const memberIndex = await groupContract.memberIndices(account);
+      let memberIndex;
+      try {
+        memberIndex = await groupContract.memberIndices(account);
+      } catch (err) {
+        console.error("Contract call failed:", err);
+        throw new Error("This circle is using an older, incompatible contract version. Please join a newer circle.");
+      }
+      
       console.log("Member index:", memberIndex);
       
       if (Number(memberIndex) === 0) {
         console.log("User is not a member. Sending joinGroup transaction...");
         toast({ title: "Joining Circle...", description: "Adding your wallet to the group members." });
-        const joinTx = await groupContract.joinGroup();
-        console.log("Join TX hash:", joinTx.hash);
-        await joinTx.wait();
-        toast({ title: "Joined!", description: "You are now a member. Proceeding to deposit..." });
+        
+        try {
+          const joinTx = await groupContract.joinGroup();
+          console.log("Join TX hash:", joinTx.hash);
+          await joinTx.wait();
+          toast({ title: "Joined!", description: "You are now a member. You can now deposit." });
+          setIsJoining(false);
+          return;
+        } catch (err: any) {
+          if (err.message.includes("missing revert data")) {
+            throw new Error("This circle contract does not support joining. It may be an older version.");
+          }
+          throw err;
+        }
       }
 
       console.log("Formatting contribution amount:", group.contribution_amount);
-      const amountInWei = ethers.parseUnits(group.contribution_amount.toString(), 6);
-      const usdcContract = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
-      
       console.log("Checking USDC allowance...");
       const currentAllowance = await usdcContract.allowance(account, group.contract_address);
       console.log("Current allowance:", currentAllowance.toString());
@@ -135,7 +172,7 @@ export const GroupDetails = (): JSX.Element => {
       console.error("Error joining circle:", error);
       toast({
         title: "Join failed",
-        description: error.message || "Transaction reverted",
+        description: error.reason || error.message || "Transaction reverted",
         variant: "destructive",
       });
     } finally {
@@ -275,7 +312,7 @@ export const GroupDetails = (): JSX.Element => {
                 className="w-full bg-primary-300 hover:bg-primary-400 text-primary-950 font-bold py-6 text-lg"
               >
                 {isJoining ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                {isJoining ? "PROCESSING..." : "JOIN & DEPOSIT"}
+                {isJoining ? "PROCESSING..." : "JOIN / DEPOSIT"}
               </Button>
             </CardContent>
           </Card>

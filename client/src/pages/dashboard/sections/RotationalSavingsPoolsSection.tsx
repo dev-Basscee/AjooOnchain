@@ -71,16 +71,16 @@ export const RotationalSavingsPoolsSection = (): JSX.Element => {
         await approveTx.wait();
       }
 
-      // 2. Call deposit on the AjooGroup contract
-      toast({ title: "Depositing...", description: "Please confirm the deposit transaction." });
+      // 2. Call joinGroup on the AjooGroup contract
+      toast({ title: "Joining...", description: "Please confirm the join transaction." });
       const groupContract = new ethers.Contract(group.contract_address, AjooGroupABI.abi, signer);
       
-      const depositTx = await groupContract.deposit();
-      await depositTx.wait();
+      const joinTx = await groupContract.joinGroup();
+      await joinTx.wait();
 
       toast({
         title: "Successfully Joined!",
-        description: `You have joined ${group.name}.`,
+        description: `You have joined ${group.name}. You can now make a deposit in the circle details.`,
       });
       
     } catch (error: any) {

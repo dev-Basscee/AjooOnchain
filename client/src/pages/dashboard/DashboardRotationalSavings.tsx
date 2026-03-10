@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useWeb3 } from "@/lib/Web3Context";
 import { Loader2, Wallet, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { CreateCircleModal } from "./components/CreateCircleModal";
 

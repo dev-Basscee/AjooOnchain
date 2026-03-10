@@ -40,10 +40,16 @@ contract AjooGroup is ReentrancyGuard, AutomationCompatibleInterface {
     uint256 public currentRecipientIndex;
     uint256 public platformFeePercentage = 100; // 1% = 100 basis points (denominator: 10000)
 
+    // Add a maximum member limit if desired
+    uint256 public maxMembers = 4;
+
     // Grace period before a forced payout can occur
     uint256 public constant GRACE_PERIOD = 3 days;
 
     address public feeTreasury;
+
+    // Add the event for frontend indexing
+    event MemberJoined(address indexed member);
 
     event DepositMade(address indexed member, uint256 amount);
     event PayoutDistributed(address indexed recipient, uint256 payoutAmount, uint256 interestShared);
@@ -79,22 +85,23 @@ contract AjooGroup is ReentrancyGuard, AutomationCompatibleInterface {
 
     // --- Core Functions ---
 
-    /**
-     * @dev Allows a user to join the group if there is space.
-     * For now, we allow joining before the first payout cycle starts.
-     */
     function joinGroup() external {
+        // Check that they aren't already in the group
         require(memberIndices[msg.sender] == 0, "Already a member");
-        // Simplified check: allow joining if group has fewer than 10 members
-        require(members.length < 10, "Group is full");
-
+        // Check that the group isn't full
+        require(members.length < maxMembers, "Group is full");
+        
+        // Add the new member to the array
         members.push(Member({
             account: msg.sender,
             hasContributedThisCycle: false,
             totalContributed: 0
         }));
         
-        memberIndices[msg.sender] = members.length;
+        // Record their index (1-indexed to differentiate from 0/non-members)
+        memberIndices[msg.sender] = members.length; 
+        
+        emit MemberJoined(msg.sender);
     }
 
     /**
